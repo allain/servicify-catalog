@@ -16,8 +16,8 @@ var specSchema = ducktype({
   expires: Number
 });
 
-function Servicify(opts) {
-  if (!(this instanceof Servicify)) return new Servicify(opts);
+function ServicifyCatalog(opts) {
+  if (!(this instanceof ServicifyCatalog)) return new ServicifyCatalog(opts);
   this._opts = opts = opts || {};
 
   this._offerings = [];
@@ -29,16 +29,16 @@ function Servicify(opts) {
   }.bind(this));
 }
 
-util.inherits(Servicify, EventEmitter);
+util.inherits(ServicifyCatalog, EventEmitter);
 
-Servicify.prototype.gc = function() {
+ServicifyCatalog.prototype.gc = function() {
   var now = Date.now();
   return this.rescind(function(r) {
     return r.expires < now;
   });
 };
 
-Servicify.prototype.offer = function (offeringSpec) {
+ServicifyCatalog.prototype.offer = function (offeringSpec) {
   if (!specSchema.test(offeringSpec))
     return Promise.reject(new Error('invalid service spec: ' + JSON.stringify(offeringSpec)));
 
@@ -60,7 +60,7 @@ Servicify.prototype.offer = function (offeringSpec) {
   return Promise.resolve(offering);
 };
 
-Servicify.prototype.rescind = function () {
+ServicifyCatalog.prototype.rescind = function () {
   var self = this;
 
   var matcher = buildMatcher(arguments[0], arguments[1]);
@@ -83,7 +83,7 @@ Servicify.prototype.rescind = function () {
   return Promise.resolve(rescinded);
 };
 
-Servicify.prototype.resolve = function (name, required) {
+ServicifyCatalog.prototype.resolve = function (name, required) {
   var offerings =  this._offerings.filter(matchBySemver(name, required));
 
   if (offerings.length) {
@@ -141,4 +141,4 @@ function matchById(id) {
   };
 }
 
-module.exports = Servicify;
+module.exports = ServicifyCatalog;

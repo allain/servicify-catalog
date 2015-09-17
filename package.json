@@ -1,7 +1,7 @@
 {
-  "name": "servicify-core",
+  "name": "servicify-catalog",
   "version": "0.2.0",
-  "description": "The semver registry data model used in servicify stuff",
+  "description": "The semver catalog used to track service offerings",
   "main": "index.js",
   "scripts": {
     "test": "blue-tape test/*.js",
