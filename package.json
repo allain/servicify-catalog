@@ -1,0 +1,28 @@
+{
+  "name": "servicify-core",
+  "version": "0.1.0",
+  "description": "The semver registry data model used in servicify stuff",
+  "main": "index.js",
+  "scripts": {
+    "test": "blue-tape test/*.js",
+    "lint": "jshint test index.js"
+  },
+  "keywords": [
+    "semver",
+    "registry"
+  ],
+  "author": "Allain Lalonde <allain.lalonde@gmail.com>",
+  "license": "ISC",
+  "devDependencies": {
+    "blue-tape": "^0.1.10",
+    "jshint": "^2.8.0"
+  },
+  "dependencies": {
+    "bluebird": "^2.10.0",
+    "deep-equal": "^1.0.1",
+    "defined": "^1.0.0",
+    "ducktype": "^1.1.0",
+    "semver": "^5.0.3",
+    "uniqid": "^1.0.0"
+  }
+}
