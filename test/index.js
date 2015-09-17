@@ -17,80 +17,83 @@ test('can be created without options', function (t) {
 
 test('can register a service', function (t) {
   var servicify = new Servicify();
-  return servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 1}).then(function () {
-    return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    t.equal(resolutions.length, 1);
 
-    assertProps(t, resolutions[0], {id: 1, name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234});
+  return servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 1, expires: 1}).then(function () {
+    return servicify.resolve('a', '^1.0.0');
+  }).then(function (offerings) {
+    t.equal(offerings.length, 1);
+
+    assertProps(t, offerings[0], {id: 1, name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234, expires: 1});
   });
 });
 
 test('generates an id if none given', function (t) {
-  return new Servicify().register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234}).then(function (registration) {
-    t.equal(typeof registration.id, 'string');
+
+  return new Servicify().offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 1234, expires: 1}).then(function (offering) {
+    t.equal(typeof offering.id, 'string');
   });
 });
 
 test('returns empty when no services resolve', function (t) {
-  return new Servicify().resolve('a', '^1.0.0').then(function (resolutions) {
-    t.deepEqual(resolutions, []);
+  return new Servicify().resolve('a', '^1.0.0').then(function (offerings) {
+    t.deepEqual(offerings, []);
   });
 });
 
 test('resolved to any service which satisfies dep', function (t) {
   var servicify = new Servicify();
-
+  var now = Date.now();
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2}),
-    servicify.register({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 2}),
+    servicify.offer({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3, expires: 3})
   ]).then(function () {
     return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    t.equal(resolutions.length, 2);
-    assertProps(t, resolutions[0], {name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1});
-    assertProps(t, resolutions[1], {name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3});
+  }).then(function (offerings) {
+    t.equal(offerings.length, 2);
+    assertProps(t, offerings[0], {name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1, expires: 1});
+    assertProps(t, offerings[1], {name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3, expires: 3});
   });
 });
 
-test('supports deregistering by exact spec', function (t) {
+test('supports rescinding by exact spec', function (t) {
   var servicify = new Servicify();
-
+  var now = Date.now();
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 1})
   ]).then(function () {
-    return servicify.deregister({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12});
+    return servicify.rescind({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12});
   }).then(function () {
     return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    t.deepEqual(resolutions, []);
+  }).then(function (offerings) {
+    t.deepEqual(offerings, []);
   });
 });
 
-test('supports deregistering by id', function (t) {
+test('supports rescinding by id', function (t) {
   var servicify = new Servicify();
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 2})
   ]).then(function () {
-    return servicify.deregister(1);
+    return servicify.rescind(1);
   }).then(function () {
     return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    t.deepEqual(resolutions, []);
+  }).then(function (offerings) {
+    t.deepEqual(offerings, []);
   });
 });
 
 test('supports deregistration by resolution', function (t) {
   var servicify = new Servicify();
+
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2}),
-    servicify.register({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 2}),
+    servicify.offer({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3, expires: 3})
   ]).then(function () {
-    return servicify.deregister('a', '^1.0.0');
+    return servicify.rescind('a', '^1.0.0');
   }).then(function () {
     return servicify.resolve('a', '^1.0.0');
   }).then(function (resolutions) {
@@ -100,12 +103,13 @@ test('supports deregistration by resolution', function (t) {
 
 test('supports deregistration by predicate', function (t) {
   var servicify = new Servicify();
+
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2}),
-    servicify.register({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 2}),
+    servicify.offer({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3, expires: 3})
   ]).then(function () {
-    return servicify.deregister(function (spec) {
+    return servicify.rescind(function (spec) {
       return spec.name === 'a';
     });
   }).then(function () {
@@ -117,39 +121,26 @@ test('supports deregistration by predicate', function (t) {
 
 test('supports deregistration by array', function (t) {
   var servicify = new Servicify();
-
   return Promise.all([
-    servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}),
-    servicify.register({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2}),
-    servicify.register({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3})
+    servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, expires: 1}),
+    servicify.offer({name: 'b', version: '1.2.3', host: '127.0.0.1', port: 1234, id: 2, expires: 2}),
+    servicify.offer({name: 'a', version: '1.2.4', host: '127.0.0.1', port: 123, id: 3, expires: 3})
   ]).then(function () {
     return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    return servicify.deregister(resolutions);
+  }).then(function (offerings) {
+    return servicify.rescind(offerings);
   }).then(function () {
     return servicify.resolve('a', '^1.0.0');
-  }).then(function (resolutions) {
-    t.deepEqual(resolutions, []);
+  }).then(function (offerings) {
+    t.deepEqual(offerings, []);
   });
 });
 
-test('resolutions have expirations when they are created', function (t) {
+test('resolutions require expirations ', function (t) {
   var servicify = new Servicify();
-  return servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}).then(function(registration) {
-    t.ok(registration.expires);
-  });
-});
 
-test('touching registrations works', function (t) {
-  var servicify = new Servicify();
-  return servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12, id: 1}).then(function (registration) {
-    var expiresBefore = registration.expires;
-
-    return Promise.delay(5).then(function () {
-      return servicify.touch(1);
-    }).then(function (touched) {
-      t.notEqual(touched.expires, expiresBefore);
-    });
+  return servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 12}).catch(function(err) {
+    t.ok(err);
   });
 });
 
@@ -162,11 +153,13 @@ test('emits expected events', function (t) {
 });
 
 test('gc deregisters services that have been dormant too long', function (t) {
-  var servicify = new Servicify({lifetime: 10});
+  var servicify = new Servicify();
 
-  return servicify.register({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 2021}).then(function () {
+  return servicify.offer({name: 'a', version: '1.2.3', host: '127.0.0.1', port: 2021, expires: Date.now() + 5}).then(function () {
     return Promise.delay(20);
-  }).then(servicify.gc.bind(servicify)).then(function() {
+  }).then(function() {
+    servicify.gc();
+  }).then(function() {
     return servicify.resolve('a', '^1.0.0');
   }).then(function (resolutions) {
     t.deepEqual(resolutions, []);

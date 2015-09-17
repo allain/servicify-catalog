@@ -12,14 +12,15 @@ var specSchema = ducktype({
   name: String,
   version: String,
   host: String,
-  port: Number
+  port: Number,
+  expires: Number
 });
 
 function Servicify(opts) {
   if (!(this instanceof Servicify)) return new Servicify(opts);
   this._opts = opts = opts || {};
-  this._opts.lifetime = defined(opts.lifetime, 60000);
-  this._registrations = [];
+
+  this._offerings = [];
 
   EventEmitter.call(this);
 
@@ -32,78 +33,66 @@ util.inherits(Servicify, EventEmitter);
 
 Servicify.prototype.gc = function() {
   var now = Date.now();
-  return this.deregister(function(r) {
+  return this.rescind(function(r) {
     return r.expires < now;
   });
 };
 
-Servicify.prototype.register = function (spec) {
-  if (!specSchema.test(spec))
-    return Promise.reject(new Error('invalid service spec: ' + JSON.stringify(spec)));
+Servicify.prototype.offer = function (offeringSpec) {
+  if (!specSchema.test(offeringSpec))
+    return Promise.reject(new Error('invalid service spec: ' + JSON.stringify(offeringSpec)));
 
-  var existing = this._registrations.filter(matchBySpec(spec));
+  var existing = this._offerings.filter(matchBySpec(offeringSpec));
   if (existing.length) {
-    return Promise.reject(new Error('cannot register a service twice'));
+    offering = existing[0];
+    Object.keys(offeringSpec).forEach(function(prop) {
+      offering[prop] = offeringSpec[prop];
+    })
+  } else {
+    // clone spec so we don't clobber it
+    var offering = JSON.parse(JSON.stringify(offeringSpec));
+    offering.id = offering.id || uniqid();
+    this._offerings.push(offering);
   }
 
-  // clone spec so we don't clobber it
-  var registered = JSON.parse(JSON.stringify(spec));
-  registered.id = registered.id || uniqid();
-  registered.expires = Date.now() + this._opts.lifetime;
+  this.emit('offered', offering);
 
-  this._registrations.push(registered);
-
-  this.emit('registered', registered);
-
-  return Promise.resolve(registered);
+  return Promise.resolve(offering);
 };
 
-Servicify.prototype.deregister = function () {
+Servicify.prototype.rescind = function () {
   var self = this;
 
   var matcher = buildMatcher(arguments[0], arguments[1]);
 
-  var deregistered = [];
+  var rescinded = [];
 
-  this._registrations = this._registrations.filter(function(r) {
+  this._offerings = this._offerings.filter(function(r) {
     if (matcher(r)) {
-      deregistered.push(r);
+      rescinded.push(r);
       return false;
     }
 
     return true;
   });
 
-  deregistered.forEach(function(d) {
-    self.emit('deregistered', d);
+  rescinded.forEach(function(d) {
+    self.emit('rescinded', d);
   });
 
-  return Promise.resolve(deregistered);
-};
-
-Servicify.prototype.touch = function() {
-  var matcher = buildMatcher(arguments[0], arguments[1]);
-
-  var newExpires = Date.now() + this._opts.lifetime;
-
-  return Promise.resolve(this._registrations.filter(function(r) {
-    if (matcher(r)) {
-      r.expires = newExpires;
-      return true;
-    }
-  }));
+  return Promise.resolve(rescinded);
 };
 
 Servicify.prototype.resolve = function (name, required) {
-  var resolutions =  this._registrations.filter(matchBySemver(name, required));
+  var offerings =  this._offerings.filter(matchBySemver(name, required));
 
-  if (resolutions.length) {
-    this.emit('resolved', name, required, resolutions);
+  if (offerings.length) {
+    this.emit('resolved', name, required, offerings);
   } else {
     this.emit('unresolved', name, required);
   }
 
-  return Promise.resolve(resolutions);
+  return Promise.resolve(offerings);
 };
 
 function buildMatcher() {
@@ -124,6 +113,7 @@ function buildMatcher() {
   if (typeof args[0] === 'object') {
    return matchBySpec(args[0]);
   }
+
   return matchById(args[0]);
 }
 
